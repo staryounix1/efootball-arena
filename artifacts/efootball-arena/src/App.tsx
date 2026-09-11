@@ -80,7 +80,7 @@ const ArenaContext = createContext<ArenaContextValue | null>(null);
 const useArena = () => useContext(ArenaContext) as ArenaContextValue;
 
 function ArenaProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useStored<Lang>('arena_lang', 'darija_latin');
+  const [lang, setLangState] = useStored<Lang>('arena_lang_v2', 'ar_fusha');
   const [user, setUser] = useStored<User | null>('arena_user', null);
   const [matches, setMatches] = useStored<Match[]>('arena_matches', seedMatches);
   const [tournaments, setTournaments] = useStored<Tournament[]>('arena_tournaments', seedTournaments);
@@ -200,7 +200,112 @@ function TournamentsPage() {
 
 function LeaderboardPage() { const { players } = useArena(); return <div className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6 lg:px-8"><PageTitle icon={Flame} color="border-orange-500/20 bg-orange-500/10 text-orange-400" title="Classement L-Abtal (Top Players)" subtitle="Ahsan la3ibin f eFootball f l-Mghrib hasab 3adad l-intissarat" /><div className="overflow-x-auto rounded-3xl border border-zinc-800 bg-zinc-900/60 shadow-xl"><table className="w-full text-left text-xs"><thead className="border-b border-zinc-800 bg-zinc-950 uppercase text-zinc-400"><tr><th className="p-4 text-center">Rang</th><th className="p-4">Joueur</th><th className="p-4">eFootball ID</th><th className="p-4 text-center">Victoires</th><th className="p-4 text-center">Défaites</th><th className="p-4 text-right">Win Rate</th></tr></thead><tbody className="divide-y divide-zinc-800/80">{players.map((p, i) => <tr data-testid={`row-leaderboard-${p.id}`} key={p.id} className="hover:bg-zinc-800/40"><td className="p-4 text-center font-bold">{i < 3 ? <span className={`inline-flex h-7 w-7 items-center justify-center rounded-full font-black ${i === 0 ? 'bg-amber-400 text-black' : i === 1 ? 'bg-zinc-300 text-black' : 'bg-amber-700 text-white'}`}>{i + 1}</span> : <span className="mono text-zinc-500">#{i + 1}</span>}</td><td className="p-4"><div className="flex items-center gap-2.5"><div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-800 font-bold text-zinc-300">{p.username.substring(0, 2).toUpperCase()}</div><b className="text-sm text-white">{p.username}</b></div></td><td className="mono p-4 text-zinc-400">{p.efootball_id}</td><td className="mono p-4 text-center text-sm font-bold text-emerald-400">{p.wins}</td><td className="mono p-4 text-center text-sm font-bold text-rose-400">{p.losses}</td><td className="mono p-4 text-right text-sm font-bold text-white">{p.win_rate}%</td></tr>)}</tbody></table></div></div>; }
 
-function AuthPage({ mode }: { mode: 'login' | 'register' }) { const { login, register } = useArena(); const [, setLocation] = useLocation(); const [form, setForm] = useState({ login: '', password: '', username: '', email: '', efootball_id: '', whatsapp: '' }); const [error, setError] = useState(''); const isLogin = mode === 'login'; return <div className="flex min-h-[82vh] items-center justify-center p-4"><div className={`w-full ${isLogin ? 'max-w-md' : 'max-w-lg'} rounded-3xl border border-zinc-800 bg-zinc-900/90 p-6 shadow-2xl backdrop-blur-md sm:p-8`}><div className="mb-6 text-center"><div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-400 text-zinc-950 shadow-lg shadow-emerald-500/20">{isLogin ? <LogIn className="h-7 w-7" /> : <UserPlus className="h-7 w-7" />}</div><h1 className="text-2xl font-black text-white">{isLogin ? 'Dkhol l Hisab Dyalk' : 'Fte7 Hisab Jdid'}</h1><p className="mt-1 text-xs text-zinc-400">{isLogin ? 'L3eb 1vs1 w chhan rasid dyalk f kol wa9t' : 'Dkhol l-komyuniti dyal l3iba dyal eFootball f l-Mghrib'}</p></div>{error && <Notice type="error">{error}</Notice>}<form data-testid={`form-${mode}`} onSubmit={e => { e.preventDefault(); const okay = isLogin ? login(form.login, form.password) : register(form); if (!okay) return setError(isLogin ? 'Login awla password ghalet' : '3awed 3ammar l-ma3loumat'); setLocation(isLogin && form.login.toLowerCase() === 'admin' ? '/admin' : '/matches'); }} className="mt-4 space-y-3.5">{isLogin ? <><Field label="Username awla Email" value={form.login} onChange={v => setForm({ ...form, login: v })} test="input-login" /><Field label="Mot de passe" type="password" value={form.password} onChange={v => setForm({ ...form, password: v })} test="input-password" /></> : <><div className="grid gap-3 sm:grid-cols-2"><Field label="Pseudo / Username" value={form.username} onChange={v => setForm({ ...form, username: v })} test="input-username" /><Field label="eFootball ID" value={form.efootball_id} onChange={v => setForm({ ...form, efootball_id: v })} test="input-efootball-id" /></div><Field label="Raqm WhatsApp" value={form.whatsapp} onChange={v => setForm({ ...form, whatsapp: v })} test="input-whatsapp" /><Field label="Email" type="email" value={form.email} onChange={v => setForm({ ...form, email: v })} test="input-email" /><Field label="Mot de passe" type="password" value={form.password} onChange={v => setForm({ ...form, password: v })} test="input-register-password" /></>}<button data-testid={`button-submit-${mode}`} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 px-4 py-3 text-sm font-bold text-zinc-950">{isLogin ? 'Dkhol' : 'Tsjel Daba'}<ArrowRight className="h-4 w-4" /></button></form><div className="mt-6 border-t border-zinc-800 pt-5 text-center text-xs text-zinc-400">{isLogin ? <>Mazal ma 3ndekch hisab? <Link data-testid="link-auth-register" href="/register" className="font-bold text-emerald-400">Tsjel daba fabor</Link><div className="mt-4 rounded-xl border border-zinc-800/80 bg-zinc-950/80 p-3 text-left text-[11px]"><b className="mb-1 block text-zinc-300"><ShieldCheck className="mr-1 inline h-3.5 w-3.5 text-purple-400" />Compte Admin Demo</b>Login: <code className="text-emerald-300">admin</code> | MDP: <code className="text-emerald-300">admin123</code></div></> : <>3ndek hisab deja? <Link data-testid="link-auth-login" href="/login" className="font-bold text-emerald-400">Dkhol l hisabk</Link></>}</div></div></div>; }
+function AuthPage({ mode }: { mode: 'login' | 'register' }) {
+  const { login, register, lang } = useArena();
+  const [, setLocation] = useLocation();
+  const [form, setForm] = useState({ login: '', password: '', username: '', email: '', efootball_id: '', whatsapp: '' });
+  const [error, setError] = useState('');
+  const isLogin = mode === 'login';
+  const arabic = lang !== 'darija_latin';
+  const text = arabic
+    ? {
+        loginTitle: 'تسجيل الدخول إلى حسابك',
+        registerTitle: 'إنشاء حساب جديد',
+        loginSubtitle: 'العب مباريات 1 ضد 1 واشحن رصيدك في أي وقت',
+        registerSubtitle: 'انضم إلى مجتمع لاعبي eFootball في المغرب',
+        identifier: 'اسم المستخدم أو البريد الإلكتروني',
+        password: 'كلمة المرور',
+        username: 'اسم المستخدم',
+        efootballId: 'معرّف eFootball',
+        whatsapp: 'رقم واتساب',
+        loginAction: 'تسجيل الدخول',
+        registerAction: 'إنشاء الحساب',
+        loginError: 'اسم المستخدم أو كلمة المرور غير صحيحة',
+        registerError: 'يرجى إكمال جميع المعلومات',
+        noAccount: 'ليس لديك حساب؟',
+        haveAccount: 'لديك حساب بالفعل؟',
+        registerLink: 'إنشاء حساب مجاناً',
+        loginLink: 'تسجيل الدخول',
+      }
+    : {
+        loginTitle: 'Dkhol l Hisab Dyalk',
+        registerTitle: 'Fte7 Hisab Jdid',
+        loginSubtitle: 'L3eb 1vs1 w chhan rasid dyalk f kol wa9t',
+        registerSubtitle: 'Dkhol l-komyuniti dyal l3iba dyal eFootball f l-Mghrib',
+        identifier: 'Username awla Email',
+        password: 'Mot de passe',
+        username: 'Pseudo / Username',
+        efootballId: 'eFootball ID',
+        whatsapp: 'Raqm WhatsApp',
+        loginAction: 'Dkhol',
+        registerAction: 'Tsjel Daba',
+        loginError: 'Login awla password ghalet',
+        registerError: '3awed 3ammar l-ma3loumat',
+        noAccount: 'Mazal ma 3ndekch hisab?',
+        haveAccount: '3ndek hisab deja?',
+        registerLink: 'Tsjel daba fabor',
+        loginLink: 'Dkhol l hisabk',
+      };
+
+  return (
+    <div className="flex min-h-[82vh] items-center justify-center p-4">
+      <div className={`w-full ${isLogin ? 'max-w-md' : 'max-w-lg'} rounded-3xl border border-zinc-800 bg-zinc-900/90 p-6 shadow-2xl backdrop-blur-md sm:p-8`}>
+        <div className="mb-6 text-center">
+          <div className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-400 text-zinc-950 shadow-lg shadow-emerald-500/20">
+            {isLogin ? <LogIn className="h-7 w-7" /> : <UserPlus className="h-7 w-7" />}
+          </div>
+          <h1 className="text-2xl font-black text-white">{isLogin ? text.loginTitle : text.registerTitle}</h1>
+          <p className="mt-1 text-xs text-zinc-400">{isLogin ? text.loginSubtitle : text.registerSubtitle}</p>
+        </div>
+        {error && <Notice type="error">{error}</Notice>}
+        <form
+          data-testid={`form-${mode}`}
+          onSubmit={e => {
+            e.preventDefault();
+            const okay = isLogin ? login(form.login, form.password) : register(form);
+            if (!okay) return setError(isLogin ? text.loginError : text.registerError);
+            setLocation(isLogin && form.login.toLowerCase() === 'admin' ? '/admin' : '/matches');
+          }}
+          className="mt-4 space-y-3.5"
+        >
+          {isLogin ? (
+            <>
+              <Field label={text.identifier} value={form.login} onChange={v => setForm({ ...form, login: v })} test="input-login" />
+              <Field label={text.password} type="password" value={form.password} onChange={v => setForm({ ...form, password: v })} test="input-password" />
+            </>
+          ) : (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field label={text.username} value={form.username} onChange={v => setForm({ ...form, username: v })} test="input-username" />
+                <Field label={text.efootballId} value={form.efootball_id} onChange={v => setForm({ ...form, efootball_id: v })} test="input-efootball-id" />
+              </div>
+              <Field label={text.whatsapp} value={form.whatsapp} onChange={v => setForm({ ...form, whatsapp: v })} test="input-whatsapp" />
+              <Field label="Email" type="email" value={form.email} onChange={v => setForm({ ...form, email: v })} test="input-email" />
+              <Field label={text.password} type="password" value={form.password} onChange={v => setForm({ ...form, password: v })} test="input-register-password" />
+            </>
+          )}
+          <button data-testid={`button-submit-${mode}`} className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 px-4 py-3 text-sm font-bold text-zinc-950">
+            {isLogin ? text.loginAction : text.registerAction}
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </form>
+        <div className="mt-6 border-t border-zinc-800 pt-5 text-center text-xs text-zinc-400">
+          {isLogin ? (
+            <>
+              {text.noAccount}{' '}
+              <Link data-testid="link-auth-register" href="/register" className="font-bold text-emerald-400">{text.registerLink}</Link>
+            </>
+          ) : (
+            <>
+              {text.haveAccount}{' '}
+              <Link data-testid="link-auth-login" href="/login" className="font-bold text-emerald-400">{text.loginLink}</Link>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 function Field({ label, value, onChange, type = 'text', test }: { label: string; value: string; onChange: (v: string) => void; type?: string; test: string }) { return <div><label className="label">{label}</label><input data-testid={test} type={type} value={value} onChange={e => onChange(e.target.value)} className="field" required /></div>; }
 
 function ProfilePage() {
