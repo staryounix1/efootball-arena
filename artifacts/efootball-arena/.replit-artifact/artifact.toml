@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Efootball Arena"
+description = "A dark competitive eFootball arena for creating paid matches, joining live challenges, tracking tournaments, and managing a player wallet."
+version = "1.0.0"
+id = "artifacts/efootball-arena"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18469
+
+[services.development]
+run = "pnpm --filter @workspace/efootball-arena run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/efootball-arena", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/efootball-arena/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18469"
+BASE_PATH = "/"
