@@ -325,7 +325,8 @@ function AdminStat({ label, value, icon: Icon, color }: { label: string; value: 
 
 function formatCurrencyText(text: string) {
   return text
-    .replace(/(\d[\d,]*(?:\.\d+)?)\s*(?:DH|MAD|درهم|د\.م)\b/g, '$$$1')
+    .replace(/\b(Prize|Stake):\s*(\d[\d,]*(?:\.\d+)?)\s*(?:DH|MAD|درهم|د\.م)\b/g, (_, label, amount) => `\u2066$${amount}\u2069 ${label}`)
+    .replace(/(\d[\d,]*(?:\.\d+)?)\s*(?:DH|MAD|درهم|د\.م)\b/g, (_, amount) => `\u2066$${amount}\u2069`)
     .replace(/\b(?:DH|MAD|درهم|د\.م)\b/g, '$');
 }
 
@@ -340,6 +341,17 @@ function CurrencyDisplay() {
         const updated = formatCurrencyText(current);
         if (updated !== current) node.nodeValue = updated;
       }
+
+      document.querySelectorAll<HTMLElement>('b, span').forEach((element) => {
+        const content = element.textContent?.trim() ?? '';
+        const cardAmount = content.match(/^(Prize|Stake):\s*([\d,]+)\s*\$/);
+        if (cardAmount) {
+          element.dir = 'ltr';
+          element.textContent = `${cardAmount[1]}: $${cardAmount[2]}`;
+        } else if (/^(Prize|Stake):/.test(content)) {
+          element.dir = 'ltr';
+        }
+      });
     };
 
     updateCurrencyLabels();
