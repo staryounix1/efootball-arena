@@ -323,6 +323,34 @@ function AdminPage() {
 }
 function AdminStat({ label, value, icon: Icon, color }: { label: string; value: string; icon: typeof Wallet; color: string }) { return <div className="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-5"><div className="flex justify-between"><span className="text-xs font-semibold uppercase text-zinc-400">{label}</span><Icon className={`h-4 w-4 ${color}`} /></div><b className={`mono mt-2 block text-2xl ${color}`}>{value}</b></div>; }
 
-function AppShell() { return <ArenaProvider><Navbar /><main className="min-h-[calc(100dvh-9rem)]"><Switch><Route path="/" component={HomePage} /><Route path="/matches" component={MatchesPage} /><Route path="/matches/:id" component={MatchDetailPage} /><Route path="/tournaments" component={TournamentsPage} /><Route path="/leaderboard" component={LeaderboardPage} /><Route path="/profile" component={ProfilePage} /><Route path="/login"><AuthPage mode="login" /></Route><Route path="/register"><AuthPage mode="register" /></Route><Route path="/admin" component={AdminPage} /><Route component={NotFound} /></Switch></main><Footer /></ArenaProvider>; }
+function formatCurrencyText(text: string) {
+  return text
+    .replace(/(\d[\d,]*(?:\.\d+)?)\s*(?:DH|MAD|درهم|د\.م)\b/g, '$$$1')
+    .replace(/\b(?:DH|MAD|درهم|د\.م)\b/g, '$');
+}
+
+function CurrencyDisplay() {
+  useEffect(() => {
+    const updateCurrencyLabels = () => {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      let node: Node | null;
+      while ((node = walker.nextNode())) {
+        if (node.parentElement?.closest('script, style')) continue;
+        const current = node.nodeValue ?? '';
+        const updated = formatCurrencyText(current);
+        if (updated !== current) node.nodeValue = updated;
+      }
+    };
+
+    updateCurrencyLabels();
+    const observer = new MutationObserver(updateCurrencyLabels);
+    observer.observe(document.body, { childList: true, characterData: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
+
+  return null;
+}
+
+function AppShell() { return <ArenaProvider><CurrencyDisplay /><Navbar /><main className="min-h-[calc(100dvh-9rem)]"><Switch><Route path="/" component={HomePage} /><Route path="/matches" component={MatchesPage} /><Route path="/matches/:id" component={MatchDetailPage} /><Route path="/tournaments" component={TournamentsPage} /><Route path="/leaderboard" component={LeaderboardPage} /><Route path="/profile" component={ProfilePage} /><Route path="/login"><AuthPage mode="login" /></Route><Route path="/register"><AuthPage mode="register" /></Route><Route path="/admin" component={AdminPage} /><Route component={NotFound} /></Switch></main><Footer /></ArenaProvider>; }
 function NotFound() { return <div className="mx-auto max-w-xl px-4 py-24 text-center"><AlertCircle className="mx-auto mb-3 h-10 w-10 text-zinc-600" /><h1 className="text-2xl font-black text-white">Page ma kaynach</h1><Link href="/" className="mt-3 inline-block text-sm text-emerald-400 underline">Rje3 l l-home</Link></div>; }
 export default AppShell;
