@@ -6,11 +6,13 @@ Efootball Arena is a competitive Moroccan eFootball lobby for paid 1v1 challenge
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
 - `pnpm --filter @workspace/efootball-arena run dev` — run the Efootball Arena web app
+- Vercel: import the repository from its root; `vercel.json` builds and serves `artifacts/efootball-arena` as the SPA
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required web env: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` — Supabase project URL and publishable anon key
+- The Arena schema is tracked in `supabase/migrations/20260911_arena.sql` and must be applied to the connected Supabase project before using authentication or remote data
 
 ## Stack
 
@@ -30,8 +32,8 @@ Efootball Arena is a competitive Moroccan eFootball lobby for paid 1v1 challenge
 
 ## Architecture decisions
 
-- The first rebuild is client-side so every screen is immediately usable in preview without requiring a database or external account connection.
-- Browser localStorage holds demo auth, matches, tournaments, wallet activity, and settings so mutations survive refreshes.
+- The first rebuild remains client-side for preview data, while Supabase handles authentication and remote profiles, wallet activity, and recharge requests when configured.
+- Browser localStorage holds demo data when Supabase is not configured; with Supabase configured, authenticated data is loaded from the connected project.
 - Wouter keeps the route surface lightweight while preserving the original URL structure, including match detail routes.
 
 ## Product
