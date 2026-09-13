@@ -1,8 +1,8 @@
 {
   "framework": "vite",
   "installCommand": "pnpm install --frozen-lockfile",
-  "buildCommand": "pnpm install --frozen-lockfile && cd artifacts/efootball-arena && pnpm run build",
-  "outputDirectory": "artifacts/efootball-arena/dist/public",
+  "buildCommand": "pnpm install --frozen-lockfile && pnpm run build",
+  "outputDirectory": "dist/public",
   "rewrites": [
     {
       "source": "/(.*)",
