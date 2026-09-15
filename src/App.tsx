@@ -17,6 +17,7 @@ type Recharge = { id: string; username: string; userId: string; amount: number; 
 type Withdrawal = { id: string; username: string; userId: string; amount: number; method: string; destination: string; notes: string; status: 'PENDING' | 'APPROVED' | 'REJECTED'; created_at: string };
 type Dispute = { id: string; matchId: string; username: string; userId: string; subject: string; details: string; status: 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'REJECTED'; resolution?: string; evidence?: string[]; created_at: string };
 type ActivityRecord = { id: string; userId?: string; username: string; category: 'ACCOUNT' | 'RECHARGE' | 'WITHDRAWAL' | 'MATCH' | 'TOURNAMENT' | 'DISPUTE' | 'ADMIN'; action: string; description: string; amount?: number; created_at: string };
+type RegisterResult = 'SIGNED_IN' | 'CONFIRM_EMAIL' | null;
 
 const seedMatches: Match[] = [
   { id: 'm-2048', title: 'تحدٍّ سريع بقيمة 20 درهماً', creator_id: 'u-yassine', creator_name: 'Yassine_7', creator_efootball_id: 'EF-728194', platform: 'الهاتف', stake: 20, prize: 36, status: 'OPEN', messages: [] },
@@ -47,7 +48,7 @@ function useStored<T>(key: string, fallback: T): [T, (value: T | ((old: T) => T)
 
 type ArenaContextValue = {
   user: User | null; users: User[]; matches: Match[]; tournaments: Tournament[]; players: typeof seedPlayers; transactions: Tx[]; recharges: Recharge[]; withdrawals: Withdrawal[]; disputes: Dispute[]; activities: ActivityRecord[]; settings: Record<string, string>;
-  login: (identifier: string, password: string) => Promise<boolean>; register: (data: Partial<User>) => Promise<boolean>; logout: () => void;
+  login: (identifier: string, password: string) => Promise<User['role'] | null>; register: (data: Partial<User>) => Promise<RegisterResult>; logout: () => void;
   createMatch: (title: string, stake: number, platform: string) => string | null; joinMatch: (id: string) => boolean; joinTournament: (id: string) => boolean; recharge: (amount: number, method: string, whatsapp: string, notes: string) => void; requestWithdrawal: (amount: number, method: string, destination: string, notes: string) => boolean;
   updateMatch: (id: string, patch: Partial<Match>) => void; addMessage: (id: string, message: string) => void; openDispute: (matchId: string, subject: string, details: string, files?: File[]) => void; resolveDispute: (id: string, status: Dispute['status'], resolution: string) => void;
   approveRecharge: (id: string, approved: boolean) => void; approveWithdrawal: (id: string, approved: boolean) => void; adjustUser: (id: string, amount: number) => void; setUserBanned: (id: string, banned: boolean, reason: string) => void; saveSettings: (patch: Record<string, string>) => void;
@@ -112,22 +113,26 @@ function ArenaProvider({ children }: { children: ReactNode }) {
   const login = async (identifier: string, password: string) => {
     if (supabaseEnabled && supabase) {
        let email = identifier;
-       if (!identifier.includes('@')) { const lookup = await supabase.rpc('find_login_email', { login_identifier: identifier }); if (lookup.error || !lookup.data) return false; email = String(lookup.data); }
-      const result = await supabase.auth.signInWithPassword({ email, password }); return !result.error;
+       if (!identifier.includes('@')) { const lookup = await supabase.rpc('find_login_email', { login_identifier: identifier }); if (lookup.error || !lookup.data) return null; email = String(lookup.data); }
+       const result = await supabase.auth.signInWithPassword({ email, password });
+       if (result.error || !result.data.user) return null;
+       const profile = await supabase.from('users').select('role, banned').eq('id', result.data.user.id).maybeSingle();
+       if (profile.error || !profile.data || profile.data.banned) return null;
+       return profile.data.role === 'ADMIN' ? 'ADMIN' : 'PLAYER';
     }
     const admin: User = { id: 'admin-1', username: 'admin', email: 'admin@arena.ma', password: 'admin123', role: 'ADMIN', balance: 0, efootball_id: 'ADMIN', whatsapp: '+212600000000', wins: 0, losses: 0, banned: false, created_at: '2026-01-01T00:00:00.000Z' };
-    const found = identifier.toLowerCase() === 'admin' && password === 'admin123' ? admin : users.find(item => (item.username.toLowerCase() === identifier.toLowerCase() || item.email.toLowerCase() === identifier.toLowerCase()) && item.password === password);
-    if (!found || found.banned) return false;
-    const loggedIn = { ...found, last_login: new Date().toISOString() }; setUser(loggedIn); setUsers(old => old.map(item => item.id === loggedIn.id ? loggedIn : item)); recordActivity('تسجيل الدخول', `تم تسجيل الدخول إلى الحساب ${loggedIn.username}`, 'ACCOUNT', loggedIn); return true;
+     const found: User | null = identifier.toLowerCase() === 'admin' && password === 'admin123' ? admin : users.find(item => (item.username.toLowerCase() === identifier.toLowerCase() || item.email.toLowerCase() === identifier.toLowerCase()) && item.password === password) || null;
+     if (!found || found.banned) return null;
+     const loggedIn = { ...found, last_login: new Date().toISOString() }; setUser(loggedIn); setUsers(old => old.map(item => item.id === loggedIn.id ? loggedIn : item)); recordActivity('تسجيل الدخول', `تم تسجيل الدخول إلى الحساب ${loggedIn.username}`, 'ACCOUNT', loggedIn); return loggedIn.role;
   };
   const register = async (data: Partial<User>) => {
     if (supabaseEnabled && supabase) {
       const auth = await supabase.auth.signUp({ email: data.email || '', password: data.password || '', options: { data: { username: data.username, efootball_id: data.efootball_id, whatsapp: data.whatsapp } } });
-      if (auth.error || !auth.data.user) return false;
-       return true;
+       if (auth.error || !auth.data.user) return null;
+       return auth.data.session ? 'SIGNED_IN' : 'CONFIRM_EMAIL';
     }
     const next: User = { id: `u-${Date.now()}`, username: data.username || 'لاعب', email: data.email || '', password: data.password || '', role: 'PLAYER', balance: 0, efootball_id: data.efootball_id || 'EF-000000', whatsapp: data.whatsapp || '', wins: 0, losses: 0, banned: false, created_at: new Date().toISOString() };
-    setUsers(old => [...old, next]); setUser(next); recordActivity('إنشاء حساب', `تم إنشاء حساب اللاعب ${next.username}`, 'ACCOUNT', next); return true;
+     setUsers(old => [...old, next]); setUser(next); recordActivity('إنشاء حساب', `تم إنشاء حساب اللاعب ${next.username}`, 'ACCOUNT', next); return 'SIGNED_IN';
   };
   const logout = () => { if (user) recordActivity('تسجيل الخروج', `غادر اللاعب ${user.username} المنصة`, 'ACCOUNT', user); if (supabaseEnabled && supabase) void supabase.auth.signOut(); setUser(null); };
   const createMatch = (title: string, stake: number, platform: string) => {
@@ -186,7 +191,19 @@ function Field({ label, value, onChange, type = 'text', test, placeholder }: { l
 function AuthPage({ mode }: { mode: 'login' | 'register' }) {
   const { login, register } = useArena(); const [, setLocation] = useLocation(); const isLogin = mode === 'login'; const [form, setForm] = useState({ login: '', password: '', username: '', email: '', efootball_id: '', whatsapp: '' }); const [error, setError] = useState('');
   const update = (key: keyof typeof form, value: string) => setForm(old => ({ ...old, [key]: value }));
-  const submit = async (event: FormEvent) => { event.preventDefault(); const okay = await (isLogin ? login(form.login, form.password) : register(form)); if (!okay) return setError(isLogin ? 'بيانات الدخول غير صحيحة.' : 'يرجى إكمال جميع المعلومات.'); setLocation(isLogin && form.login.toLowerCase() === 'admin' ? '/admin' : '/matches'); };
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (isLogin) {
+      const role = await login(form.login, form.password);
+      if (!role) return setError('بيانات الدخول غير صحيحة أو الحساب غير مؤكد.');
+      setLocation(role === 'ADMIN' ? '/admin' : '/matches');
+      return;
+    }
+    const result = await register(form);
+    if (!result) return setError('تعذر إنشاء الحساب. تحقق من البيانات أو أن البريد مستخدم مسبقاً.');
+    if (result === 'CONFIRM_EMAIL') return setError('تم إنشاء الحساب. تحقق من بريدك الإلكتروني ثم سجّل الدخول.');
+    setLocation('/matches');
+  };
   return <div className="auth-page"><div className="auth-card"><span className="auth-mark">{isLogin ? <LogIn className="h-7 w-7" /> : <UserPlus className="h-7 w-7" />}</span><h1>{isLogin ? 'تسجيل الدخول' : 'إنشاء حساب جديد'}</h1><p>{isLogin ? 'تابع مبارياتك وأدر رصيدك بأمان.' : 'انضم إلى مجتمع لاعبي eFootball في المغرب.'}</p>{error && <Notice type="error">{error}</Notice>}<form onSubmit={submit} className="form-stack">{isLogin ? <><Field label="اسم المستخدم أو البريد الإلكتروني" value={form.login} onChange={value => update('login', value)} test="input-login" /><Field label="كلمة المرور" type="password" value={form.password} onChange={value => update('password', value)} test="input-password" /></> : <><div className="form-grid"><Field label="اسم المستخدم" value={form.username} onChange={value => update('username', value)} test="input-username" /><Field label="معرّف eFootball" value={form.efootball_id} onChange={value => update('efootball_id', value)} test="input-efootball-id" /></div><Field label="رقم واتساب" value={form.whatsapp} onChange={value => update('whatsapp', value)} test="input-whatsapp" /><Field label="البريد الإلكتروني" type="email" value={form.email} onChange={value => update('email', value)} test="input-email" /><Field label="كلمة المرور" type="password" value={form.password} onChange={value => update('password', value)} test="input-register-password" /></>}<button className="primary-button full" data-testid={`button-submit-${mode}`}>{isLogin ? 'دخول إلى الحساب' : 'إنشاء الحساب'}<ArrowLeft className="h-4 w-4" /></button></form><div className="auth-switch">{isLogin ? <>ليس لديك حساب؟ <Link href="/register">أنشئ حساباً مجاناً</Link></> : <>لديك حساب بالفعل؟ <Link href="/login">سجّل الدخول</Link></>}</div></div></div>;
 }
 
