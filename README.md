@@ -30,7 +30,7 @@ pnpm install
 3. اذهب إلى **Settings** → **API** وانسخ:
    - Project URL
    - anon public key
-   - service_role key
+   - احتفظ بـ service_role key سرياً؛ لا يحتاجه هذا التطبيق في المتصفح.
 
 ### الخطوة 2: إعداد ملف .env
 أنشئ ملف `.env` في جذر المشروع:
@@ -40,61 +40,32 @@ pnpm install
 VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
 VITE_SUPABASE_ANON_KEY=YOUR-ANON-KEY
 
-# Backend (سري!)
-SUPABASE_URL=https://YOUR-PROJECT.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=YOUR-SERVICE-ROLE-KEY
-
-# Database (اختياري)
-DATABASE_URL=postgresql://...
-
-# Environment
-NODE_ENV=development
-PORT=5173
-BASE_PATH=/
 ```
 
 ### الخطوة 3: تطبيق قاعدة البيانات
-```bash
-# شغّل سكربت الـ migration
-node scripts/run-migration.cjs
-```
+من **SQL Editor** في Supabase، شغّل الملفين بالترتيب:
+
+1. `supabase/migrations/20260911_arena.sql`
+2. `supabase/migrations/20260915_remote_arena.sql`
 
 ### الخطوة 4: إنشاء SuperAdmin
-```bash
-# شغّل سكربت إنشاء الحساب
-node scripts/create-superadmin.cjs
+أنشئ مستخدماً في **Authentication → Users** بالبريد `younix.far@gmail.com`، ثم نفّذ:
+
+```sql
+UPDATE public.users
+SET role = 'ADMIN', banned = FALSE
+WHERE email = 'younix.far@gmail.com';
 ```
 
 ---
 
 ## ▶️ تشغيل التطبيق
 
-### التطبيق (Frontend):
+### التطبيق:
 ```bash
-pnpm --filter @workspace/efootball-arena run dev
+pnpm run dev
 ```
 - سيفتح على: `http://localhost:5173`
-
-### الخادم (Backend API):
-```bash
-pnpm --filter @workspace/api-server run dev
-```
-- سيفتح على: `http://localhost:5000`
-
----
-
-## 🔑 بيانات SuperAdmin
-
-بعد تشغيل سكربت إنشاء الحساب، ستظهر لك البيانات:
-
-```
-Email:    admin@efootball-arena.ma
-Password: SuperAdmin2024!@#
-Username: superadmin
-Role:     ADMIN
-```
-
-⚠️ **مهم:** غيّر كلمة المرور بعد أول تسجيل دخول!
 
 ---
 
@@ -105,22 +76,14 @@ Role:     ADMIN
 pnpm install
 
 # تشغيل التطبيق
-pnpm --filter @workspace/efootball-arena run dev
-
-# تشغيل الـ API
-pnpm --filter @workspace/api-server run dev
+pnpm run dev
 
 # بناء التطبيق للإنتاج
-pnpm --filter @workspace/efootball-arena run build
+pnpm run build
 
 # فحص TypeScript
 pnpm run typecheck
 
-# تطبيق قاعدة البيانات
-node scripts/run-migration.cjs
-
-# إنشاء SuperAdmin
-node scripts/create-superadmin.cjs
 ```
 
 ---
@@ -129,33 +92,15 @@ node scripts/create-superadmin.cjs
 
 ```
 efootball-arena/
-├── artifacts/
-│   ├── efootball-arena/          # التطبيق (React + Vite)
-│   │   ├── src/
-│   │   │   ├── App.tsx           # التطبيق الرئيسي
-│   │   │   ├── main.tsx          # نقطة الدخول
-│   │   │   └── ...
-│   │   ├── vite.config.ts
-│   │   └── package.json
-│   └── api-server/               # الخادم (Express)
-│       ├── src/
-│       └── package.json
-├── lib/
-│   ├── db/                       # قاعدة البيانات (Drizzle)
-│   ├── api-client-react/         # عميل API (React Query)
-│   └── api-zod/                  # مخططات Zod
+├── src/                           # التطبيق (React + Vite)
+│   ├── App.tsx
+│   └── lib/supabase.ts
 ├── supabase/
 │   └── migrations/
-│       └── 20260911_arena.sql    # قاعدة البيانات
-├── scripts/
-│   ├── run-migration.cjs         # سكربت الـ migration
-│   ├── create-superadmin.cjs     # سكربت SuperAdmin
-│   └── fix-rls.cjs               # إصلاح RLS
-├── .env                           # المتغيرات البيئية
-├── .gitignore
-├── package.json
-├── pnpm-workspace.yaml
-└── vercel.json                   # إعدادات Vercel
+│       ├── 20260911_arena.sql
+│       └── 20260915_remote_arena.sql
+├── .env.example
+ 
 ```
 
 ---
@@ -192,6 +137,10 @@ efootball-arena/
 | `tournament_participants` | مشاركة اللاعبين |
 | `transactions` | المعاملات المالية |
 | `recharges` | طلبات الشحن |
+| `withdrawals` | طلبات السحب |
+| `disputes` | نزاعات المباريات |
+| `dispute_evidence` | ملفات أدلة النزاعات |
+| `activity_logs` | سجل النشاطات |
 | `settings` | إعدادات المنصة |
 
 ---
@@ -199,7 +148,7 @@ efootball-arena/
 ## 🆘 المساعدة
 
 إذا واجهت مشكلة:
-1. تأكد أن ملف `.env` صحيح
+1. تأكد أن متغيري Supabase في `.env` صحيحان
 2. تأكد أن Supabase يعمل
 3. جرب `pnpm install` ثم أعد التشغيل
 4. تحقق من السجلات في الترمينال
@@ -209,6 +158,6 @@ efootball-arena/
 ## 📝 ملاحظات
 
 - ملف `.env` مضاف إلى `.gitignore` (لن يُرفع على GitHub)
-- غيّر كلمة مرور SuperAdmin فوراً
-- قاعدة البيانات تُطبق مرة واحدة فقط
+- لا تضع مفتاح `service_role` في الواجهة أو في GitHub
+- شغّل ملفي قاعدة البيانات بالترتيب
 - RLS مفعّل على جميع الجداول
