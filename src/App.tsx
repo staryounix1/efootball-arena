@@ -131,9 +131,12 @@ function ArenaProvider({ children }: { children: ReactNode }) {
   };
   const register = async (data: Partial<User>) => {
     if (supabaseEnabled && supabase) {
-      const auth = await supabase.auth.signUp({ email: data.email || '', password: data.password || '', options: { data: { username: data.username, efootball_id: data.efootball_id, whatsapp: data.whatsapp } } });
+       const auth = await supabase.auth.signUp({ email: data.email || '', password: data.password || '', options: { data: { username: data.username, efootball_id: data.efootball_id, whatsapp: data.whatsapp } } });
        if (auth.error || !auth.data.user) return null;
-       return auth.data.session ? 'SIGNED_IN' : 'CONFIRM_EMAIL';
+       if (!auth.data.session) return 'CONFIRM_EMAIL';
+       const profile = await supabase.from('users').select('*').eq('id', auth.data.user.id).maybeSingle();
+       if (profile.data) setUser(mapUserRow(profile.data));
+       return 'SIGNED_IN';
     }
     const next: User = { id: `u-${Date.now()}`, username: data.username || 'لاعب', email: data.email || '', password: data.password || '', role: 'PLAYER', balance: 0, efootball_id: data.efootball_id || 'EF-000000', whatsapp: data.whatsapp || '', wins: 0, losses: 0, banned: false, created_at: new Date().toISOString() };
      setUsers(old => [...old, next]); setUser(next); recordActivity('إنشاء حساب', `تم إنشاء حساب اللاعب ${next.username}`, 'ACCOUNT', next); return 'SIGNED_IN';
