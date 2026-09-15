@@ -19,6 +19,8 @@ type Dispute = { id: string; matchId: string; username: string; userId: string; 
 type ActivityRecord = { id: string; userId?: string; username: string; category: 'ACCOUNT' | 'RECHARGE' | 'WITHDRAWAL' | 'MATCH' | 'TOURNAMENT' | 'DISPUTE' | 'ADMIN'; action: string; description: string; amount?: number; created_at: string };
 type RegisterResult = 'SIGNED_IN' | 'CONFIRM_EMAIL' | null;
 
+const mapUserRow = (row: Record<string, unknown>): User => ({ id: String(row.id), username: String(row.username || 'لاعب'), email: String(row.email || ''), role: row.role === 'ADMIN' ? 'ADMIN' : 'PLAYER', balance: Number(row.balance || 0), efootball_id: String(row.efootball_id || 'EF-000000'), whatsapp: String(row.whatsapp || ''), wins: Number(row.wins || 0), losses: Number(row.losses || 0), banned: Boolean(row.banned), ban_reason: row.ban_reason ? String(row.ban_reason) : '', created_at: row.created_at ? String(row.created_at) : undefined, last_login: row.last_login ? String(row.last_login) : undefined });
+
 const seedMatches: Match[] = [
   { id: 'm-2048', title: 'تحدٍّ سريع بقيمة 20 درهماً', creator_id: 'u-yassine', creator_name: 'Yassine_7', creator_efootball_id: 'EF-728194', platform: 'الهاتف', stake: 20, prize: 36, status: 'OPEN', messages: [] },
   { id: 'm-2051', title: 'مباراة المساء على المنصة', creator_id: 'u-soufiane', creator_name: 'Soufiane10', creator_efootball_id: 'EF-441208', platform: 'PlayStation', stake: 50, prize: 90, status: 'OPEN', messages: [] },
@@ -72,8 +74,7 @@ function ArenaProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!supabaseEnabled || !supabase) return;
     let cancelled = false;
-    const mapUser = (row: Record<string, unknown>): User => ({ id: String(row.id), username: String(row.username || 'لاعب'), email: String(row.email || ''), role: row.role === 'ADMIN' ? 'ADMIN' : 'PLAYER', balance: Number(row.balance || 0), efootball_id: String(row.efootball_id || 'EF-000000'), whatsapp: String(row.whatsapp || ''), wins: Number(row.wins || 0), losses: Number(row.losses || 0), banned: Boolean(row.banned), ban_reason: row.ban_reason ? String(row.ban_reason) : '', created_at: row.created_at ? String(row.created_at) : undefined, last_login: row.last_login ? String(row.last_login) : undefined });
-    const loadProfile = async (id: string) => { const result = await supabase.from('users').select('*').eq('id', id).maybeSingle(); if (!cancelled && result.data) setUser(mapUser(result.data)); };
+     const loadProfile = async (id: string) => { const result = await supabase.from('users').select('*').eq('id', id).maybeSingle(); if (!cancelled && result.data) setUser(mapUserRow(result.data)); };
     const loadRemote = async () => {
       const session = (await supabase.auth.getSession()).data.session;
       if (session?.user) await loadProfile(session.user.id); else if (!cancelled) setUser(null);
@@ -89,10 +90,10 @@ function ArenaProvider({ children }: { children: ReactNode }) {
         supabase.from('settings').select('*'),
       ]);
       if (cancelled) return;
-      if (usersResult.data) setUsers(usersResult.data.map(mapUser));
+       if (usersResult.data) setUsers(usersResult.data.map(mapUserRow));
       if (matchesResult.data) setMatches(matchesResult.data.map((row: Record<string, unknown>) => ({ ...row, creator_id: row.creator_id, opponent_id: row.opponent_id || undefined, messages: ((row.match_messages as Record<string, unknown>[] | undefined) || []).map(message => ({ id: String(message.id), user_id: message.user_id ? String(message.user_id) : undefined, username: String(message.username), message: String(message.message) })) })) as Match[]);
       if (tournamentsResult.data) setTournaments(tournamentsResult.data as Tournament[]);
-      if (transactionsResult.data) setTransactions(transactionsResult.data.map((row: Record<string, unknown>) => ({ id: String(row.id), type: String(row.type), description: String(row.description), amount: Number(row.amount), balance_after: Number(row.balance_after), created_at: String(row.created_at) })));
+       if (transactionsResult.data) setTransactions(transactionsResult.data.map((row: Record<string, unknown>) => ({ id: String(row.id), type: String(row.type), description: String(row.description), amount: Number(row.amount), balance_after: Number(row.balance_after), created_at: String(row.created_at) })));
       if (rechargesResult.data) setRecharges(rechargesResult.data.map((row: Record<string, unknown>) => ({ id: String(row.id), username: String(row.username), userId: String(row.user_id), amount: Number(row.amount), payment_method: String(row.payment_method), whatsapp: String(row.whatsapp || ''), notes: String(row.notes || ''), status: row.status as Recharge['status'], created_at: String(row.created_at) })));
       if (withdrawalsResult.data) setWithdrawals(withdrawalsResult.data.map((row: Record<string, unknown>) => ({ id: String(row.id), username: String(row.username), userId: String(row.user_id), amount: Number(row.amount), method: String(row.method), destination: String(row.destination), notes: String(row.notes || ''), status: row.status as Withdrawal['status'], created_at: String(row.created_at) })));
       if (disputesResult.data) setDisputes(disputesResult.data.map((row: Record<string, unknown>) => ({ id: String(row.id), matchId: String(row.match_id), username: String(row.username), userId: String(row.user_id), subject: String(row.subject), details: String(row.details), status: row.status as Dispute['status'], resolution: row.resolution ? String(row.resolution) : undefined, evidence: Array.isArray(row.evidence) ? row.evidence as string[] : [], created_at: String(row.created_at) })));
@@ -116,14 +117,17 @@ function ArenaProvider({ children }: { children: ReactNode }) {
        if (!identifier.includes('@')) { const lookup = await supabase.rpc('find_login_email', { login_identifier: identifier }); if (lookup.error || !lookup.data) return null; email = String(lookup.data); }
        const result = await supabase.auth.signInWithPassword({ email, password });
        if (result.error || !result.data.user) return null;
-       const profile = await supabase.from('users').select('role, banned').eq('id', result.data.user.id).maybeSingle();
-       if (profile.error || !profile.data || profile.data.banned) return null;
-       return profile.data.role === 'ADMIN' ? 'ADMIN' : 'PLAYER';
+        const profile = await supabase.from('users').select('*').eq('id', result.data.user.id).maybeSingle();
+        if (profile.error || !profile.data || profile.data.banned) return null;
+        const loggedIn = { ...mapUserRow(profile.data), last_login: new Date().toISOString() };
+        setUser(loggedIn);
+        setUsers(old => old.some(item => item.id === loggedIn.id) ? old.map(item => item.id === loggedIn.id ? { ...item, ...loggedIn } : item) : [loggedIn, ...old]);
+        return loggedIn.role;
     }
     const admin: User = { id: 'admin-1', username: 'admin', email: 'admin@arena.ma', password: 'admin123', role: 'ADMIN', balance: 0, efootball_id: 'ADMIN', whatsapp: '+212600000000', wins: 0, losses: 0, banned: false, created_at: '2026-01-01T00:00:00.000Z' };
      const found: User | null = identifier.toLowerCase() === 'admin' && password === 'admin123' ? admin : users.find(item => (item.username.toLowerCase() === identifier.toLowerCase() || item.email.toLowerCase() === identifier.toLowerCase()) && item.password === password) || null;
      if (!found || found.banned) return null;
-     const loggedIn = { ...found, last_login: new Date().toISOString() }; setUser(loggedIn); setUsers(old => old.map(item => item.id === loggedIn.id ? loggedIn : item)); recordActivity('تسجيل الدخول', `تم تسجيل الدخول إلى الحساب ${loggedIn.username}`, 'ACCOUNT', loggedIn); return loggedIn.role;
+       const loggedIn = { ...found, last_login: new Date().toISOString() }; setUser(loggedIn); setUsers(old => old.map(item => item.id === loggedIn.id ? loggedIn : item)); recordActivity('تسجيل الدخول', `تم تسجيل الدخول إلى الحساب ${loggedIn.username}`, 'ACCOUNT', loggedIn); return loggedIn.role;
   };
   const register = async (data: Partial<User>) => {
     if (supabaseEnabled && supabase) {
